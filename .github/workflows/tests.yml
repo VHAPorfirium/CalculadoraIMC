@@ -1,0 +1,48 @@
+name: CI - Maven Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        java: [21]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - name: Run unit tests (mvn or mvnw)
+        run: |
+          if [ -f mvnw ]; then
+            ./mvnw -B -ntp test
+          else
+            mvn -B -ntp test
+          fi
+
+      - name: Upload Surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: "**/target/surefire-reports/*"
